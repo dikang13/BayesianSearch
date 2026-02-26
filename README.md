@@ -1,2 +1,3 @@
 # BayesianSearch
-# BayesianSearch
+
+Documentation coming soon...
