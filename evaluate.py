@@ -30,37 +30,37 @@ def _():
 
     # 2. Simulation Setup
     n_trials = 8
-    budget = 80 # Maximum number of experiments to run out of 256
+    budget = 100 # Maximum number of experiments to run out of 256
 
     metrics = {
         'Freq': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)},
-        'BO_Non_NoUp': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)},
-        'BO_Inf_NoUp': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)},
+        # 'BO_Non_NoUp': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)},
+        # 'BO_Inf_NoUp': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)},
         'BO_Non_Seq': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)},
         'BO_Inf_Seq': {'cum_regret': np.zeros(budget), 'hit_budget': [], 'std_opt': np.zeros(budget)}
     }
 
     labels = {
-        'Freq': '1) Frequentist',
-        'BO_Non_NoUp': '2) BO (Non-info, No Update)',
-        'BO_Inf_NoUp': '3) BO (Info Prior, No Update)',
-        'BO_Non_Seq': '4) BO (Non-info, Sequential)',
-        'BO_Inf_Seq': '5) BO (Info Prior, Sequential)'
+        'Freq': 'Frequentist grid search',
+        # 'BO_Non_NoUp': '2) BO (Non-info, No Update)',
+        # 'BO_Inf_NoUp': '3) BO (Info Prior, No Update)',
+        'BO_Non_Seq': 'Bayesian non-informative prior',
+        'BO_Inf_Seq': 'Bayesian informative prior'
     }
 
     colors = {
-        'Freq': '#7f8c8d', 
-        'BO_Non_NoUp': '#3498db', 
-        'BO_Inf_NoUp': '#f39c12', 
-        'BO_Non_Seq': '#9b59b6', 
-        'BO_Inf_Seq': '#e74c3c'
+        'Freq': 'tab:grey', 
+        # 'BO_Non_NoUp': '#3498db', 
+        # 'BO_Inf_NoUp': '#f39c12', 
+        'BO_Non_Seq': 'tab:blue', 
+        'BO_Inf_Seq': 'tab:orange'
     }
 
     linestyles = {
         'Freq': '-', 
-        'BO_Non_NoUp': '--', 
-        'BO_Inf_NoUp': '-', 
-        'BO_Non_Seq': '-.', 
+        # 'BO_Non_NoUp': '--', 
+        # 'BO_Inf_NoUp': '-', 
+        'BO_Non_Seq': '-', 
         'BO_Inf_Seq': '-'
     }
 
@@ -71,16 +71,20 @@ def _():
         Y_true = gp_true.sample_y(X_grid, random_state=trial).ravel()
         opt_idx = np.argmax(Y_true)
         opt_val = Y_true[opt_idx]
-    
+
         # QSAR Prior (Ground truth + noise)
         qsar_prior = Y_true + np.random.normal(0, 0.5, n_pairs)
-    
+
         # Approaches 1, 2, 3: Static Rankings
         order_freq = np.random.permutation(n_pairs)
         order_non_noup = np.random.permutation(n_pairs) 
         order_inf_noup = np.argsort(qsar_prior)[::-1]
-    
-        for name, order in [('Freq', order_freq), ('BO_Non_NoUp', order_non_noup), ('BO_Inf_NoUp', order_inf_noup)]:
+
+        for name, order in [
+            ('Freq', order_freq), 
+            # ('BO_Non_NoUp', order_non_noup), 
+            # ('BO_Inf_NoUp', order_inf_noup)
+        ]:
             cum_regret = 0
             hit_b = budget 
             for b in range(budget):
@@ -88,7 +92,7 @@ def _():
                 cum_regret += (opt_val - Y_true[idx])
                 metrics[name]['cum_regret'][b] += cum_regret
                 metrics[name]['std_opt'][b] += 1.0 # No learning means uncertainty stays at 1.0
-            
+
                 if idx == opt_idx and hit_b == budget:
                     hit_b = b + 1
             metrics[name]['hit_budget'].append(hit_b)
@@ -98,7 +102,7 @@ def _():
         cum_regret = 0
         hit_b = budget
         sampled_non_seq = []
-    
+
         for b in range(budget):
             if b == 0:
                 idx = np.random.choice(n_pairs) # Start blind
@@ -107,23 +111,23 @@ def _():
                 X_train = X_grid[sampled_non_seq]
                 y_train = Y_true[sampled_non_seq]
                 gp_non_seq.fit(X_train, y_train)
-            
+
                 mu, sigma = gp_non_seq.predict(X_grid, return_std=True)
                 ucb = mu + 1.96 * sigma
                 ucb[sampled_non_seq] = -np.inf
                 idx = np.argmax(ucb)
-            
+
                 _, std_opt_arr = gp_non_seq.predict(X_grid[opt_idx:opt_idx+1], return_std=True)
                 std_opt = std_opt_arr[0]
-            
+
             sampled_non_seq.append(idx)
             cum_regret += (opt_val - Y_true[idx])
             metrics['BO_Non_Seq']['cum_regret'][b] += cum_regret
             metrics['BO_Non_Seq']['std_opt'][b] += std_opt
-        
+
             if idx == opt_idx and hit_b == budget:
                 hit_b = b + 1
-            
+
         metrics['BO_Non_Seq']['hit_budget'].append(hit_b)
 
         # Approach 5: BO Sequential Update (Informative Prior)
@@ -131,7 +135,7 @@ def _():
         cum_regret = 0
         hit_b = budget
         sampled_inf_seq = []
-    
+
         for b in range(budget):
             if b == 0:
                 idx = np.argmax(qsar_prior) # Start with best guess
@@ -140,24 +144,24 @@ def _():
                 X_train = X_grid[sampled_inf_seq]
                 y_train = Y_true[sampled_inf_seq] - qsar_prior[sampled_inf_seq]
                 gp_inf_seq.fit(X_train, y_train)
-            
+
                 mu, sigma = gp_inf_seq.predict(X_grid, return_std=True)
                 mu += qsar_prior
                 ucb = mu + 1.96 * sigma
                 ucb[sampled_inf_seq] = -np.inf
                 idx = np.argmax(ucb)
-            
+
                 _, std_opt_arr = gp_inf_seq.predict(X_grid[opt_idx:opt_idx+1], return_std=True)
                 std_opt = std_opt_arr[0]
-            
+
             sampled_inf_seq.append(idx)
             cum_regret += (opt_val - Y_true[idx])
             metrics['BO_Inf_Seq']['cum_regret'][b] += cum_regret
             metrics['BO_Inf_Seq']['std_opt'][b] += std_opt
-        
+
             if idx == opt_idx and hit_b == budget:
                 hit_b = b + 1
-            
+
         metrics['BO_Inf_Seq']['hit_budget'].append(hit_b)
 
     # Average out metrics across all trials
@@ -169,54 +173,54 @@ def _():
 
     # 3. Visualization Code
     budgets_arr = np.arange(1, budget + 1)
-    plt.rcParams.update({'font.size': 11})
+    plt.rcParams.update({'font.size': 14})
 
     # Plot A: Cumulative Regret
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(6, 6))
     for name in metrics:
         plt.plot(budgets_arr, metrics[name]['cum_regret'], label=labels[name], 
                  color=colors[name], linestyle=linestyles[name], linewidth=2.5)
-    plt.title('A) Cumulative Regret vs. Number of Experiments')
-    plt.xlabel('Number of Experiments (Candidate-Condition Pairs)')
-    plt.ylabel('Cumulative Regret')
+    
+    plt.xlabel('Number of Experiments', fontsize=14)
+    plt.title('Cumulative Regret ($R_T$)', fontsize=16)
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.6)
+    # plt.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()
-    plt.savefig('cumulative_regret.png')
+    plt.savefig('./plots/cumulative_regret.png')
     plt.close()
 
-    # Plot B: Budget to First Hit
-    plt.figure(figsize=(10, 6))
-    means = [np.mean(metrics[name]['hit_budget']) for name in metrics]
-    stds = [np.std(metrics[name]['hit_budget']) for name in metrics]
-    bars = plt.bar(list(labels.values()), means, yerr=stds, capsize=6, 
-                   color=list(colors.values()), alpha=0.85, edgecolor='black')
-    plt.title('B) Budget Required to Find True Optimal Pair')
-    plt.ylabel('Number of Experiments (Lower is Better)')
-    plt.xticks(rotation=20, ha='right')
-    plt.grid(axis='y', linestyle='--', alpha=0.6)
+    # # Plot B: Budget to First Hit
+    # plt.figure(figsize=(10, 6))
+    # means = [np.mean(metrics[name]['hit_budget']) for name in metrics]
+    # stds = [np.std(metrics[name]['hit_budget']) for name in metrics]
+    # bars = plt.bar(list(labels.values()), means, yerr=stds, capsize=6, 
+    #                color=list(colors.values()), alpha=0.85, edgecolor='black')
+    # plt.title('Budget Required to Find True Optimal Pair')
+    # plt.ylabel('Number of Experiments (Lower is Better)')
+    # plt.xticks(rotation=20, ha='right')
+    # plt.grid(axis='y', linestyle='--', alpha=0.6)
 
-    for bar in bars:
-        yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width()/2, yval + 1, f'{yval:.1f}', 
-                 ha='center', va='bottom', fontweight='bold')
+    # for bar in bars:
+    #     yval = bar.get_height()
+    #     plt.text(bar.get_x() + bar.get_width()/2, yval + 1, f'{yval:.1f}', 
+    #              ha='center', va='bottom', fontweight='bold')
 
-    plt.tight_layout()
-    plt.savefig('budget_to_hit.png')
-    plt.close()
+    # plt.tight_layout()
+    # plt.savefig('./plots/budget_to_hit.png')
+    # plt.close()
 
     # Plot C: Narrowing of Confidence
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(6, 6))
     for name in metrics:
         plt.plot(budgets_arr, metrics[name]['std_opt'], label=labels[name], 
                  color=colors[name], linestyle=linestyles[name], linewidth=2.5)
-    plt.title('C) Uncertainty ($\sigma$) at True Optimal Pair over Time')
-    plt.xlabel('Number of Experiments')
-    plt.ylabel('Posterior Standard Deviation (Uncertainty)')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.6)
+
+    plt.xlabel('Number of Experiments', fontsize=14)
+    plt.title('Uncertainty ($\sigma$) at True Optimum', fontsize=16)
+    plt.legend(fontsize=14)
+    # plt.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()
-    plt.savefig('confidence_narrowing.png')
+    plt.savefig('./plots/confidence_narrowing.png')
     plt.close()
 
     print("Plots saved as PNG files in the current directory.")
@@ -230,4 +234,3 @@ def _():
 
 if __name__ == "__main__":
     app.run()
-    

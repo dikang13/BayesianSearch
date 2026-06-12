@@ -1,0 +1,28 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.20.2"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "f262ca80b9f82ca5ed7004f3bacbdf3f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Running 8 trials...\nSimulations complete. Generating plots...\nPlots saved as PNG files in the current directory.\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    }
+  ]
+}
